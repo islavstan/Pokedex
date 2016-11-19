@@ -22,6 +22,8 @@ private Retrofit retrofit;
     private RecyclerView recyclerView;
     private PokemonListAdapter pokemonListAdapter;
     private static final String URL ="http://pokeapi.co/api/v2/";
+    private int offset;
+    private boolean load;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -29,18 +31,40 @@ private Retrofit retrofit;
         recyclerView =(RecyclerView)findViewById(R.id.recycler_view);
         pokemonListAdapter=new PokemonListAdapter();
         recyclerView.setAdapter(pokemonListAdapter);
-        GridLayoutManager gridLayoutManager = new GridLayoutManager(this,3);
+        final GridLayoutManager gridLayoutManager = new GridLayoutManager(this,3);
         recyclerView.setLayoutManager(gridLayoutManager);
+     recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+         @Override
+         public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+             super.onScrolled(recyclerView, dx, dy);
 
+             if(dy>0){
+                 int visibleItemCount = gridLayoutManager.getChildCount();
+                 int totalItemCount = gridLayoutManager.getItemCount();
+                 int pastVisibleItemCount = gridLayoutManager.findFirstVisibleItemPosition();
+                 if(load){
+                     if((visibleItemCount+pastVisibleItemCount)>=totalItemCount){
+                         load=false;
+                         offset+=20;
+                         getData(offset);
+
+                     }
+                 }
+             }
+         }
+     });
         retrofit =new Retrofit.Builder().baseUrl(URL).addConverterFactory(GsonConverterFactory.create()).build();
-        getData();
+        load=true;
+        offset=0;
+        getData(offset);
     }
-    private void getData(){
+    private void getData(int offset){
         PokeApiService pokeApiService =retrofit.create(PokeApiService.class);
-        Call<PokemonResponse>call =pokeApiService.getPokemonList();
+        Call<PokemonResponse>call =pokeApiService.getPokemonList(20,offset);
         call.enqueue(new Callback<PokemonResponse>() {
             @Override
             public void onResponse(Call<PokemonResponse> call, Response<PokemonResponse> response) {
+                load=true;
                 if(response.isSuccessful()){
                     PokemonResponse pokemonResponse =response.body();
                     ArrayList<Pokemon>pokemonArrayList = pokemonResponse.getResult();
@@ -51,6 +75,7 @@ private Retrofit retrofit;
 
             @Override
             public void onFailure(Call<PokemonResponse> call, Throwable t) {
+                load=true;
 
             }
         });
